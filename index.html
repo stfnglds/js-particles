@@ -1,0 +1,227 @@
+<!doctype html>
+<html>
+<head>
+    <script type="text/javascript" src="http://code.jquery.com/jquery.min.js"></script>
+
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            background-color: black;
+        }
+    </style>
+
+    <script>
+        const PARTICLE_COUNT = 100;
+
+        const WIDTH = 1600;
+        const HEIGHT = 900;
+        const X_CENTER = WIDTH / 2;
+        const Y_CENTER = HEIGHT / 2;
+
+        var mouseX = X_CENTER;
+        var mouseY = Y_CENTER;
+        $(document).mousemove(function (e) {
+            mouseX = e.pageX;
+            mouseY = e.pageY;
+            // console.log(mouseX, mouseY)
+        }).mouseover(); // call the handler immediately
+
+        function randomIntFromInterval(min, max) { // min and max included
+            max *= 10000;
+            min *= 10000;
+            return Math.floor(Math.random() * (max - min + 1) + min) / 10000;
+        }
+
+        class Vector {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.value = randomIntFromInterval(0.99, 0.999);
+            }
+
+            stretch(factor) {
+                this.x = this.x * factor;
+                this.y = this.y * factor;
+            }
+
+            add(x, y) {
+                this.x = this.x + x
+                this.y = this.y + y
+            }
+
+
+        }
+
+        class Particle {
+            nearest = [];
+
+            constructor(x, y, radius) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.vector = /*new Vector(0, 0)*/getRandomVector();
+            }
+
+            isOutBounds() {
+                if (this.x < 0 || this.x > WIDTH || this.y < 0 || this.y > HEIGHT) {
+                    return true;
+                }
+                return false;
+            }
+
+            getDistance1(x, y) {
+                return Math.sqrt(Math.pow(x - this.x, 2) + Math.pow(y - this.y, 2));
+            }
+
+            getDistance2(x1, y1, x2, y2) {
+                return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
+            }
+
+            upperLimit(num, limit) {
+                if (num > limit) {
+                    return limit
+                }
+                return num;
+            }
+
+            updateLines(particles) {
+                //   this.nearest = particles.sort((a, b) => this.getDistance2(a.x, a.y, b.x, b.y)).slice(0, 3);
+                particles.map(p => {
+                    p.dist = this.getDistance1(p.x, p.y);
+                    return p;
+                });
+                this.nearest = particles.sort((a, b) => a.dist-b.dist).slice(0, 10);
+            }
+
+            update(mx, my) {
+                this.x += this.vector.x;
+                this.y += this.vector.y;
+
+                if (this.x < 0 || this.x > WIDTH) {
+                    this.vector.x *= -1;
+                }
+                if (this.y < 0 || this.y > HEIGHT) {
+                    this.vector.y *= -1;
+                }
+
+                this.vector.stretch(this.vector.value);
+
+                const dist = this.getDistance1(mx, my);
+
+                const deltaX = (mx - this.x) / 10  / dist;
+                const deltaY = (my - this.y) / 10  / dist;
+                this.vector.x += deltaX
+                this.vector.y += deltaY
+
+                const limit = 2;
+
+                if (dist < limit) {
+                    this.vector.x = 0;
+                    this.vector.y = 0;
+                }
+            }
+
+            drawDots(context) {
+                context.beginPath();
+                context.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+                context.fill();
+            }
+
+            drawLines(context) {
+
+                this.nearest.forEach(particle => {
+                    context.beginPath();
+                    context.moveTo(this.x, this.y);
+                    context.lineTo(particle.x, particle.y);
+                    context.stroke();
+                })
+            }
+        }
+
+        function getRandomVector() {
+            const xSpeed = randomIntFromInterval(-5, 5);
+            const ySpeed = randomIntFromInterval(-5, 5);
+            return new Vector(xSpeed, ySpeed);
+        }
+
+        let particles = [];
+
+        function init() {
+            particles = [];
+            for (var i = 0; i < PARTICLE_COUNT; i++) {
+
+                const radius = randomIntFromInterval(0.2, 5);
+
+                const x = X_CENTER//randomIntFromInterval(100, 200);
+                const y = Y_CENTER//randomIntFromInterval(100, 200);
+
+                const particle = new Particle(x, y, radius);
+                particles.push(particle);
+            }
+        }
+
+        $(function () {
+            var canvas = document.getElementById("canvas");
+            var context = canvas.getContext("2d");
+            //    context.canvas.width = 1920//window.innerWidth;
+            //   context.canvas.height = 1080//window.innerHeight;
+            const mouseParticle = new Particle(0, 0, 25);
+            init();
+
+            //loop function
+            function updateloop() {
+                context.fillStyle = '#87CEEB';
+                context.strokeStyle = '#223843';
+                particles.forEach(particle => {
+                    particle.update(mouseX, mouseY, particles);
+                });
+            }
+
+
+            //loop function
+            function loop() {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                //console.log("loop");
+                context.fillStyle = '#87CEEB';
+                particles.forEach(particle => {
+                    particle.drawLines(context);
+                });
+                particles.forEach(particle => {
+                   particle.drawDots(context);
+                });
+
+                mouseParticle.x = mouseX;
+                mouseParticle.y = mouseY;
+                mouseParticle.draw(context);
+            }
+
+            function updateLinesLoop() {
+                particles.forEach(particle => {
+                    particle.updateLines(particles);
+                });
+                console.log("done")
+            }
+
+            var myTimer = setInterval(loop,20);
+            var updateTimer = setInterval(updateloop, 10);
+            var updateLinesTimer = setInterval(updateLinesLoop, 100);
+
+            $("body").click(function () {
+                init();
+            });
+
+
+        });
+    </script>
+
+</head>
+
+<body>
+<canvas id="canvas" style="border: 1px solid red" width="1600" height="900"></canvas>
+</body>
+</html>
